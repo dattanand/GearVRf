@@ -28,9 +28,10 @@
 #include "util/gvr_log.h"
 #include "util/gvr_gl.h"
 #include "glm/gtc/matrix_inverse.hpp"
+#include "../gl/gl_program.h"
 
 namespace gvr {
-Mesh* Mesh::getBoundingBox() {
+Mesh* Mesh::createBoundingBox() {
 
     Mesh* mesh = new Mesh();
 
@@ -176,17 +177,42 @@ void Mesh::getTransformedBoundingBoxInfo(glm::mat4 *Mat,
     }
 }
 
+void Mesh::bindVertexAttributes(GLuint programID)
+{
+    for (auto it = attribute_float_keys_.begin();
+            it != attribute_float_keys_.end(); ++it) {
+        std::string s = it->second;
+        int loc = glGetAttribLocation(programID, s.c_str());
+        setVertexAttribLocF(loc, s);
+    }
+    for (auto it = attribute_vec2_keys_.begin();
+            it != attribute_vec2_keys_.end(); ++it) {
+        std::string s = it->second;
+        int loc = glGetAttribLocation(programID, s.c_str());
+        setVertexAttribLocV2(loc, s);
+    }
+    for (auto it = attribute_vec3_keys_.begin();
+            it != attribute_vec3_keys_.end(); ++it) {
+        std::string s = it->second;
+        int loc = glGetAttribLocation(programID, s.c_str());
+        setVertexAttribLocV3(loc, s);
+    }
+    for (auto it = attribute_vec4_keys_.begin();
+            it != attribute_vec4_keys_.end(); ++it) {
+        std::string s = it->second;
+        int loc = glGetAttribLocation(programID, s.c_str());
+        setVertexAttribLocV4(loc, s);
+    }
+}
+
 // generate vertex array object
 void Mesh::generateVAO() {
-#if _GVRF_USE_GLES3_
-
-
     GLuint tmpID;
 
     if (!vao_dirty_) {
          return;
     }
-
+    obtainDeleter();
     deleteVaos();
 
     if (vertices_.size() == 0 && normals_.size() == 0
@@ -249,6 +275,7 @@ void Mesh::generateVAO() {
 
     for (auto it = attribute_vec2_keys_.begin();
             it != attribute_vec2_keys_.end(); ++it) {
+
         glGenBuffers(1, &tmpID);
         glBindBuffer(GL_ARRAY_BUFFER, tmpID);
         glBufferData(GL_ARRAY_BUFFER,
@@ -286,7 +313,6 @@ void Mesh::generateVAO() {
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
     vao_dirty_ = false;
-#endif
 }
 
 void Mesh::generateBoneArrayBuffers() {
@@ -296,7 +322,7 @@ void Mesh::generateBoneArrayBuffers() {
 
     // delete
     if (boneVboID_ != GVR_INVALID) {
-        gl_delete.queueBuffer(boneVboID_);
+        deleter_->queueBuffer(boneVboID_);
         boneVboID_ = GVR_INVALID;
     }
 

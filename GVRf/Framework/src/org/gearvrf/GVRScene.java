@@ -17,20 +17,36 @@ package org.gearvrf;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.gearvrf.GVRRenderData.GVRRenderMaskBit;
-import org.gearvrf.utility.Log;
 import org.gearvrf.debug.GVRConsole;
+import org.gearvrf.script.IScriptable;
+import org.gearvrf.utility.Log;
 
-/** The scene graph */
-public class GVRScene extends GVRHybridObject {
+/**
+ * The scene graph.
+ *
+ * It receives events defined in {@link ISceneEvents}. To add a listener to these events, use the
+ * following code:
+ * <pre>
+ *     ISceneEvents mySceneEventListener = new ISceneEvents() {
+ *         ...
+ *     };
+ *     getEventReceiver().addListener(mySceneEventListener);
+ * </pre>
+ */
+public class GVRScene extends GVRHybridObject implements PrettyPrint, IScriptable, IEventReceiver {
     @SuppressWarnings("unused")
     private static final String TAG = Log.tag(GVRScene.class);
 
     private final List<GVRSceneObject> mSceneObjects = new ArrayList<GVRSceneObject>();
     private GVRCameraRig mMainCameraRig;
     private StringBuilder mStatMessage = new StringBuilder();
+    private Set<GVRLightBase> mLightList = new HashSet<GVRLightBase>();
+    private GVREventReceiver mEventReceiver = new GVREventReceiver(this);
 
     /**
      * Constructs a scene with a camera rig holding left & right cameras in it.
@@ -59,6 +75,8 @@ public class GVRScene extends GVRHybridObject {
 
         setMainCameraRig(cameraRig);
         setFrustumCulling(true);
+
+        getEventReceiver().addListener(mSceneEventListener);
     }
 
     private GVRScene(GVRContext gvrContext, long ptr) {
@@ -86,6 +104,22 @@ public class GVRScene extends GVRHybridObject {
     public void removeSceneObject(GVRSceneObject sceneObject) {
         mSceneObjects.remove(sceneObject);
         NativeScene.removeSceneObject(getNative(), sceneObject.getNative());
+    }
+
+    /**
+     * Remove all scene objects.
+     */
+    public void removeAllSceneObjects() {
+        mSceneObjects.clear();
+        NativeScene.removeAllSceneObjects(getNative());
+    }
+
+    /**
+     * Clears the scene and resets it to initial state. Currently, it only
+     * removes all scene objects.
+     */
+    public void clear() {
+        removeAllSceneObjects();
     }
 
     /**
@@ -278,8 +312,11 @@ public class GVRScene extends GVRHybridObject {
             mStatsConsole.writeLine("Draw Calls: %d", numberDrawCalls);
             mStatsConsole.writeLine("Triangles: %d", numberTriangles);
 
-            if (mStatMessage.length() > 0)
-                mStatsConsole.writeLine("%s", mStatMessage.toString());
+            if (mStatMessage.length() > 0) {
+                String lines[] = mStatMessage.toString().split(System.lineSeparator());
+                for (String line : lines)
+                    mStatsConsole.writeLine("%s", line);
+            }
         }
     }
 
@@ -303,14 +340,231 @@ public class GVRScene extends GVRHybridObject {
     public void killStatMessage() {
         mStatMessage.delete(0, mStatMessage.length());
     }
+
+    /**
+     * Exports the scene to the given file path at some
+     * of the following supported formats:
+     *
+     *     Collada ( .dae )
+     *     Wavefront Object ( .obj )
+     *     Stereolithography ( .stl )
+     *     Stanford Polygon Library ( .ply )
+     *
+     * The current supported formats are the same supported
+     * by Assimp library. It will export according to file's
+     * extension.
+     *
+     * @param filepath Absolute file path to export the scene.
+     */
+    public void export(String filepath) {
+        NativeScene.exportToFile(getNative(), filepath);
+    }
+
+    private GVRDirectionalLight mDirectionalLight;
+
+    public void setDirectionalLight(GVRDirectionalLight light) {
+        mDirectionalLight = light;
+
+        if (light != null) {
+            NativeScene.attachDirectionalLight(getNative(), light.getNative());
+        } else {
+            NativeScene.attachDirectionalLight(getNative(), 0);
+        }
+    }
+    /**
+     * Bind the correct vertex and fragment shaders on all renderable objects.
+     * 
+     * Setting the shader template for a GVRRenderData selects what kind
+     * of shader to use but does not actually construct a vertex and fragment shader.
+     * This function does that for all the renderable objects that need it.
+     *
+     * All shaders should be bound after scene initialization is complete.
+     * If new assets are loaded that add lights to the scene after initialization,
+     * bindShaders may need to be called again to regenerate the correct shaders
+     * for the new lighting conditions.
+     * {@link GVRRenderData.bindShader GVRShaderTemplate }
+     */
+    public void bindShaders() {
+        for (GVRSceneObject child : mSceneObjects) {
+            ArrayList<GVRLightBase> lights = child.getAllComponents(GVRLightBase.class);
+            for (GVRLightBase light : lights) {
+                addLight(light);
+            }
+        }
+        for (GVRSceneObject child : mSceneObjects) {
+            ArrayList<GVRRenderData> renderers = child.getAllComponents(GVRRenderData.class);
+            for (GVRRenderData rdata : renderers) {
+                rdata.bindShader(this);
+            }
+        }
+    }
+    
+    protected void addLight(GVRLightBase light) {
+        if (light != null) {
+            int lightIndex = 0;
+            for (GVRLightBase l : mLightList) {
+                if (l == light) {
+                    return;
+                }
+                if (l.getClass().equals(light.getClass())) {
+                    ++lightIndex;
+                }
+            }
+            String name = "Data" + light.getClass().getSimpleName() + "[" + lightIndex + "]";
+            mLightList.add(light);
+            NativeLight.setLightID(light.getNative(), name);
+            NativeScene.addLight(getNative(), light.getNative());
+        }
+    }
+    
+    public GVRLightBase[] getLightList() {
+        GVRLightBase[] list = new GVRLightBase[mLightList.size()];
+        mLightList.toArray(list);
+        return list;
+    }
+    
+    /**
+     * Prints the {@link GVRScene} object with indentation.
+     *
+     * @param sb
+     *         The {@code StringBuffer} object to receive the output.
+     *
+     * @param indent
+     *         Size of indentation in number of spaces.
+     */
+    @Override
+    public void prettyPrint(StringBuffer sb, int indent) {
+        sb.append(Log.getSpaces(indent));
+        sb.append(getClass().getSimpleName());
+        sb.append(System.lineSeparator());
+
+        sb.append(Log.getSpaces(indent + 2));
+        if (mMainCameraRig == null) {
+            sb.append("MainCameraRig: null");
+            sb.append(System.lineSeparator());
+        } else {
+            sb.append("MainCameraRig:");
+            sb.append(System.lineSeparator());
+            mMainCameraRig.prettyPrint(sb, indent + 4);
+        }
+
+        // Show all scene objects
+        for (GVRSceneObject child : mSceneObjects) {
+            child.prettyPrint(sb, indent + 2);
+        }
+    }
+
+    /**
+     * Apply the light map texture to the scene.
+     *
+     * @param texture Texture atlas with the baked light map of the scene.
+     */
+    public void applyLightMapTexture(GVRTexture texture) {
+        applyTextureAtlas("lightmap", texture, GVRMaterial.GVRShaderType.LightMap.ID);
+    }
+
+    /**
+     * Apply the texture atlas to the scene.
+     *
+     * @param key Name of the texture. Common texture names are "main", "lightmap", etc.
+     * @param texture The texture atlas
+     * @param shaderId The shader to render the texture atlas.
+     */
+    public void applyTextureAtlas(String key, GVRTexture texture, GVRMaterialShaderId shaderId) {
+        if (!texture.isAtlasedTexture()) {
+            Log.w(TAG, "Invalid texture atlas to the scene!");
+            return;
+        }
+
+        List<GVRAtlasInformation> atlasInfoList = texture.getAtlasInformation();
+
+        for (GVRAtlasInformation atlasInfo: atlasInfoList) {
+            GVRSceneObject sceneObject = getSceneObjectByName(atlasInfo.getName());
+
+            if (sceneObject == null || sceneObject.getRenderData() == null) {
+                Log.w(TAG, "Null render data or scene object " + atlasInfo.getName()
+                        + " not found to apply texture atlas.");
+                continue;
+            }
+
+            if (shaderId == GVRMaterial.GVRShaderType.LightMap.ID
+                    && !sceneObject.getRenderData().isLightMapEnabled()) {
+                // TODO: Add support to enable and disable light map at run time.
+                continue;
+                    }
+
+            sceneObject.getRenderData().getMaterial().setShaderType(shaderId);
+            sceneObject.getRenderData().getMaterial().setTexture(key + "_texture", texture);
+            sceneObject.getRenderData().getMaterial().setTextureAtlasInfo(key, atlasInfo);
+        }
+    }
+
+    @Override
+    public String toString() {
+        StringBuffer sb = new StringBuffer();
+        prettyPrint(sb, 0);
+        return sb.toString();
+    }
+
+    @Override
+    public GVREventReceiver getEventReceiver() {
+        return mEventReceiver;
+    }
+
+    // Default scene event handler
+    private ISceneEvents mSceneEventListener = new ISceneEvents() {
+        @Override
+        public void onInit(GVRContext gvrContext, GVRScene scene) {
+            for (GVRSceneObject child : mSceneObjects) {
+                recursivelySendOnInit(child);
+            }
+        }
+
+        private void recursivelySendOnInit(GVRSceneObject sceneObject) {
+            getGVRContext().getEventManager().sendEvent(
+                    sceneObject, ISceneObjectEvents.class, "onInit", getGVRContext(), sceneObject);
+
+            for (GVRSceneObject child : sceneObject.rawGetChildren()) {
+                recursivelySendOnInit(child);
+            }
+        }
+
+        @Override
+        public void onAfterInit() {
+            bindShaders();
+            for (GVRSceneObject child : mSceneObjects) {
+                recursivelySendSimpleEvent(child, "onAfterInit");
+            }
+        }
+
+        @Override
+        public void onStep() {
+            // Send "onStep" to all scene objects and their children
+            for (GVRSceneObject child : mSceneObjects) {
+                recursivelySendSimpleEvent(child, "onStep");
+            }
+        }
+
+        private void recursivelySendSimpleEvent(GVRSceneObject sceneObject, String eventName) {
+            getGVRContext().getEventManager().sendEvent(
+                    sceneObject, ISceneObjectEvents.class, eventName);
+
+            for (GVRSceneObject child : sceneObject.rawGetChildren()) {
+                recursivelySendSimpleEvent(child, eventName);
+            }
+        }
+    };
 }
 
 class NativeScene {
+
     static native long ctor();
 
     static native void addSceneObject(long scene, long sceneObject);
 
     static native void removeSceneObject(long scene, long sceneObject);
+
+    static native void removeAllSceneObjects(long scene);
 
     public static native void setFrustumCulling(long scene, boolean flag);
 
@@ -323,4 +577,10 @@ class NativeScene {
     public static native int getNumberDrawCalls(long scene);
 
     public static native int getNumberTriangles(long scene);
+
+    public static native void exportToFile(long scene, String file_path);
+
+    static native void attachDirectionalLight(long scene, long light);
+
+    static native void addLight(long scene, long light);
 }

@@ -25,10 +25,12 @@ LOCAL_SRC_FILES := ../libs/libassimp.so
 #include $(PREBUILT_STATIC_LIBRARY)
 include $(PREBUILT_SHARED_LIBRARY)
 
+
 include $(CLEAR_VARS)
-LOCAL_MODULE := libgdx
-LOCAL_SRC_FILES := ../libs/libgdx.so
+LOCAL_MODULE    := jnlua
+LOCAL_SRC_FILES := ../libs/libjnlua.so
 include $(PREBUILT_SHARED_LIBRARY)
+
 
 include $(CLEAR_VARS)
 
@@ -66,12 +68,6 @@ LOCAL_C_INCLUDES += $(LOCAL_PATH)/contrib/jassimp2
 FILE_LIST := $(wildcard $(LOCAL_PATH)/contrib/jassimp2/*.cpp)
 LOCAL_SRC_FILES += $(FILE_LIST:$(LOCAL_PATH)/%=%)
 
-LOCAL_C_INCLUDES +=	$(LOCAL_PATH)/contrib/libpng
-FILE_LIST := $(wildcard $(LOCAL_PATH)/contrib/libpng/*.c)
-LOCAL_SRC_FILES += $(FILE_LIST:$(LOCAL_PATH)/%=%)
-FILE_LIST := $(wildcard $(LOCAL_PATH)/contrib/libpng/*.s)
-LOCAL_SRC_FILES += $(FILE_LIST:$(LOCAL_PATH)/%=%)
-
 LOCAL_C_INCLUDES += $(LOCAL_PATH)/contrib
 FILE_LIST := $(wildcard $(LOCAL_PATH)/contrib/glm/*.cpp)
 LOCAL_SRC_FILES += $(FILE_LIST:$(LOCAL_PATH)/%=%)
@@ -89,6 +85,8 @@ LOCAL_SRC_FILES += $(FILE_LIST:$(LOCAL_PATH)/%=%)
 FILE_LIST := $(wildcard $(LOCAL_PATH)/eglextension/tiledrendering/*.cpp)
 LOCAL_SRC_FILES += $(FILE_LIST:$(LOCAL_PATH)/%=%)
 FILE_LIST := $(wildcard $(LOCAL_PATH)/engine/importer/*.cpp)
+LOCAL_SRC_FILES += $(FILE_LIST:$(LOCAL_PATH)/%=%)
+FILE_LIST := $(wildcard $(LOCAL_PATH)/engine/exporter/*.cpp)
 LOCAL_SRC_FILES += $(FILE_LIST:$(LOCAL_PATH)/%=%)
 FILE_LIST := $(wildcard $(LOCAL_PATH)/engine/picker/*.cpp)
 LOCAL_SRC_FILES += $(FILE_LIST:$(LOCAL_PATH)/%=%)

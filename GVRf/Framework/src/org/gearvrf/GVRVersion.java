@@ -88,5 +88,9 @@ public class GVRVersion {
     /** Resource caching */
     public static final String V_2_0_2 = "2.0.2";
 
-    public static final String CURRENT = V_2_0_2;
+    public static final String V_2_4_0 = "2.4.0";
+
+    public static final String V_2_5_0 = "2.5.0";
+
+    public static final String CURRENT = V_2_5_0;
 }
