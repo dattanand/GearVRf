@@ -20,17 +20,14 @@ import static android.opengl.GLES20.GL_TEXTURE_2D;
 import static android.opengl.GLES20.glBindTexture;
 import static android.opengl.GLES20.glGetError;
 
-import android.graphics.Bitmap;
-import android.graphics.Bitmap.Config;
-import android.graphics.BitmapFactory;
-import android.opengl.GLUtils;
-
-import org.gearvrf.utility.Log;
-
-import java.io.IOException;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Future;
 import java.util.concurrent.RunnableFuture;
+
+import android.content.res.AssetManager;
+import android.graphics.Bitmap;
+import android.graphics.Bitmap.Config;
+import android.opengl.GLUtils;
 
 /** Bitmap-based texture. */
 public class GVRBitmapTexture extends GVRTexture {
@@ -40,8 +37,7 @@ public class GVRBitmapTexture extends GVRTexture {
      * @param gvrContext
      *            Current {@link GVRContext}
      * @param bitmap
-     *            A non-null {@link Bitmap} instance; do *not* call
-     *            recycle on the bitmap
+     *            A non-null {@link Bitmap} instance.
      */
     public GVRBitmapTexture(GVRContext gvrContext, Bitmap bitmap) {
         this(gvrContext, bitmap, gvrContext.DEFAULT_TEXTURE_PARAMETERS);
@@ -54,8 +50,7 @@ public class GVRBitmapTexture extends GVRTexture {
      * @param gvrContext
      *            Current {@link GVRContext}
      * @param bitmap
-     *            A non-null {@link Bitmap} instance; do *not* call
-     *            recycle on the bitmap
+     *            A non-null {@link Bitmap} instance.
      * @param textureParameters
      *            User defined object for {@link GVRTextureParameters} which may
      *            also contain default values.
@@ -95,6 +90,13 @@ public class GVRBitmapTexture extends GVRTexture {
      * the {@code assets} directory and the user defined filters
      * {@link GVRTextureParameters}.
      * 
+     * This method uses a native code path to create a texture directly from a
+     * {@code .png} file along with the filters defined by the calling API; it
+     * does not create an Android {@link Bitmap}. It may thus be slightly faster
+     * than loading a {@link Bitmap} and creating a texture with
+     * {@link #GVRBitmapTexture(GVRContext, Bitmap)}, and it should reduce
+     * memory pressure, a bit.
+     * 
      * @param gvrContext
      *            Current {@link GVRContext}
      * @param pngAssetFilename
@@ -108,7 +110,9 @@ public class GVRBitmapTexture extends GVRTexture {
      */
     public GVRBitmapTexture(GVRContext gvrContext, String pngAssetFilename,
             GVRTextureParameters textureParameters) {
-        this(gvrContext, getBitmap(gvrContext, pngAssetFilename), textureParameters);
+        super(gvrContext, NativeBaseTexture.fileConstructor(gvrContext
+                .getContext().getAssets(), pngAssetFilename, textureParameters
+                .getCurrentValuesArray()));
     }
 
     /**
@@ -307,20 +311,12 @@ public class GVRBitmapTexture extends GVRTexture {
         return updateTask;
     }
 
-    private static Bitmap getBitmap(GVRContext gvrContext, String pngAssetFilename) {
-        try {
-            return BitmapFactory.decodeStream(
-                    gvrContext.getContext().getAssets().open(pngAssetFilename));
-        } catch (final IOException exc) {
-            Log.e(TAG, "asset not found", exc);
-        }
-        return null;
-    }
-
-    private final static String TAG = "GVRBitmapTexture";
 }
 
 class NativeBaseTexture {
+    static native long fileConstructor(AssetManager assetManager,
+            String filename, int[] textureParameterValues);
+
     static native long bareConstructor(int[] textureParameterValues);
 
     static native boolean update(long pointer, int width, int height,

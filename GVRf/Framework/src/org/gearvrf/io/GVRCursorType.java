@@ -20,5 +20,5 @@ package org.gearvrf.io;
  *
  */
 public enum GVRCursorType {
-    MOUSE, CONTROLLER, GAZE, EXTERNAL, UNKNOWN
+    MOUSE, CONTROLLER, EXTERNAL, UNKNOWN
 }

@@ -30,6 +30,7 @@
 #endif
 
 #include "glm/glm.hpp"
+#include "gl/gl_buffer.h"
 #include "gl/gl_program.h"
 
 #include "util/gvr_gl.h"
@@ -50,7 +51,7 @@ public:
                     have_bounding_volume_(false), vao_dirty_(true),
                     vaoID_(GVR_INVALID), triangle_vboID_(GVR_INVALID), vert_vboID_(GVR_INVALID),
                     norm_vboID_(GVR_INVALID), tex_vboID_(GVR_INVALID),
-                    boneVboID_(GVR_INVALID), vertexBoneData_(this), bone_data_dirty_(true), regenerate_vao_(true)
+                    boneVboID_(GVR_INVALID), vertexBoneData_(this), bone_data_dirty_(true)
     {
     }
 
@@ -72,21 +73,16 @@ public:
     }
 
     void deleteVaos() {
-        if (vaoID_ != GVR_INVALID) {
-            deleter_->queueVertexArray(vaoID_);
-        }
-        if (triangle_vboID_ != GVR_INVALID) {
-            deleter_->queueBuffer(triangle_vboID_);
-        }
-        if (vert_vboID_ != GVR_INVALID) {
-            deleter_->queueBuffer(vert_vboID_);
-        }
-        if (norm_vboID_ != GVR_INVALID) {
-            deleter_->queueBuffer(norm_vboID_);
-        }
-        if (tex_vboID_ != GVR_INVALID) {
-            deleter_->queueBuffer(tex_vboID_);
-        }
+        if (vaoID_ != GVR_INVALID)
+            gl_delete.queueVertexArray(vaoID_);
+        if (triangle_vboID_ != GVR_INVALID)
+            gl_delete.queueBuffer(triangle_vboID_);
+        if (vert_vboID_ != GVR_INVALID)
+            gl_delete.queueBuffer(vert_vboID_);
+        if (norm_vboID_ != GVR_INVALID)
+            gl_delete.queueBuffer(norm_vboID_);
+        if (tex_vboID_ != GVR_INVALID)
+            gl_delete.queueBuffer(tex_vboID_);
         have_bounding_volume_ = false;
         vao_dirty_ = true;
         vaoID_ = triangle_vboID_ = vert_vboID_ = norm_vboID_ = tex_vboID_ = GVR_INVALID;
@@ -228,7 +224,7 @@ public:
         vao_dirty_ = true;
     }
 
-    Mesh* createBoundingBox();
+    Mesh* getBoundingBox();
     void getTransformedBoundingBoxInfo(glm::mat4 *M,
             float *transformed_bounding_box); //Get Bounding box info transformed by matrix
 
@@ -251,32 +247,28 @@ public:
     void setVertexAttribLocF(GLuint location, std::string key) {
         attribute_float_keys_[location] = key;
         vao_dirty_ = true;
-        regenerate_vao_ = true;
     }
 
     void setVertexAttribLocV2(GLuint location, std::string key) {
         attribute_vec2_keys_[location] = key;
         vao_dirty_ = true;
-        regenerate_vao_ = true;
     }
 
     void setVertexAttribLocV3(GLuint location, std::string key) {
         attribute_vec3_keys_[location] = key;
         vao_dirty_ = true;
-        regenerate_vao_ = true;
     }
 
     void setVertexAttribLocV4(GLuint location, std::string key) {
         attribute_vec4_keys_[location] = key;
         vao_dirty_ = true;
-        regenerate_vao_ = true;
     }
 
     // generate VAO
     void generateVAO();
 
-    const GLuint getVAOId() const {
-        return vaoID_;
+    const GLuint getVAOId(Material::ShaderType key) const {
+    	return vaoID_;
     }
 
     GLuint getNumTriangles() {
@@ -301,27 +293,8 @@ public:
     VertexBoneData &getVertexBoneData() {
         return vertexBoneData_;
     }
-    bool isVaoDirty() const {
-    	return regenerate_vao_;
-    }
-    void unSetVaoDirty() {
-    	regenerate_vao_ = false;
-    }
+
     void generateBoneArrayBuffers();
-
-    /**
-     * Bind the vertex attributes to the shader.
-     * @param id shader ID
-     */
-    void bindVertexAttributes(GLuint id);
-
-    //must be called by the thread on which the mesh cleanup should happen
-    void obtainDeleter() {
-        if (nullptr == deleter_) {
-            deleter_ = getDeleterForThisThread();
-        }
-    }
-
 
 private:
     Mesh(const Mesh& mesh);
@@ -355,7 +328,7 @@ private:
     // triangle information
     GLuint numTriangles_;
     bool vao_dirty_;
-    bool regenerate_vao_;
+
     bool have_bounding_volume_;
     BoundingVolume bounding_volume;
 
@@ -366,8 +339,6 @@ private:
 
     GLuint boneVboID_;
     bool bone_data_dirty_;
-
-    GlDelete* deleter_ = nullptr;
 };
 }
 #endif

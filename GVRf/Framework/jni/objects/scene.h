@@ -29,9 +29,6 @@
 #include "components/camera_rig.h"
 #include "engine/renderer/renderer.h"
 
-#include "objects/components/directional_light.h"
-#include "objects/light.h"
-
 namespace gvr {
 class SceneObject;
 
@@ -41,7 +38,6 @@ public:
     virtual ~Scene();
     void addSceneObject(SceneObject* scene_object);
     void removeSceneObject(SceneObject* scene_object);
-    void removeAllSceneObjects();
     const std::vector<SceneObject*>& scene_objects() {
         return scene_objects_;
     }
@@ -61,7 +57,6 @@ public:
 
     void set_occlusion_culling( bool occlusion_flag){ occlusion_flag_ = occlusion_flag; }
     bool get_occlusion_culling(){ return occlusion_flag_; }
-    void addLight(Light* light);
 
     void resetStats() {
         if (!statsInitialized) {
@@ -77,20 +72,6 @@ public:
         return Renderer::getNumberTriangles();
     }
 
-    void exportToFile(std::string filepath);
-
-    void attachDirectionalLight(DirectionalLight* directional_light) {
-        directional_light_ = directional_light;
-    }
-
-    DirectionalLight* getDirectionalLight() const {
-        return directional_light_;
-    }
-
-    const std::vector<Light*>& getLightList() const {
-        return lightList;
-    }
-
 private:
     Scene(const Scene& scene);
     Scene(Scene&& scene);
@@ -101,13 +82,11 @@ private:
     std::vector<SceneObject*> scene_objects_;
     CameraRig* main_camera_rig_;
 
-    DirectionalLight* directional_light_;
-
     int dirtyFlag_;
     bool frustum_flag_;
     bool occlusion_flag_;
     bool statsInitialized = false;
-    std::vector<Light*> lightList;
+
 };
 
 }

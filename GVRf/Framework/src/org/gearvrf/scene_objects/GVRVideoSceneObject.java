@@ -35,7 +35,7 @@ import android.view.Surface;
  * Android {@link MediaPlayer}.
  */
 public class GVRVideoSceneObject extends GVRSceneObject {
-    private GVRVideo mVideo;
+    private final GVRVideo mVideo;
 
     /** Video type constants, for use with {@link GVRVideoSceneObject} */
     public abstract class GVRVideoType {
@@ -61,10 +61,10 @@ public class GVRVideoSceneObject extends GVRSceneObject {
      * @throws IllegalArgumentException
      *             on an invalid {@code videoType} parameter
      */
-    public GVRVideoSceneObject(final GVRContext gvrContext, GVRMesh mesh,
-            final MediaPlayer mediaPlayer, int videoType) {
+    public GVRVideoSceneObject(GVRContext gvrContext, GVRMesh mesh,
+            MediaPlayer mediaPlayer, int videoType) {
         super(gvrContext, mesh);
-        final GVRExternalTexture texture = new GVRExternalTexture(gvrContext);
+        GVRExternalTexture texture = new GVRExternalTexture(gvrContext);
 
         GVRMaterialShaderId materialType;
         switch (videoType) {
@@ -89,14 +89,8 @@ public class GVRVideoSceneObject extends GVRSceneObject {
         material.setMainTexture(texture);
         getRenderData().setMaterial(material);
 
-        gvrContext.runOnGlThread(new Runnable() {
-            @Override
-            public void run() {
-                // Because texture.getId() is called, this needs to run in GL thread
-                mVideo = new GVRVideo(mediaPlayer, texture);
-                gvrContext.registerDrawFrameListener(mVideo);
-            }
-        });
+        mVideo = new GVRVideo(mediaPlayer, texture);
+        gvrContext.registerDrawFrameListener(mVideo);
     }
 
     /**
@@ -131,10 +125,6 @@ public class GVRVideoSceneObject extends GVRSceneObject {
      * {@link MediaPlayer#start()}.
      */
     public void activate() {
-        if (mVideo == null) {
-            return;
-        }
-
         mVideo.activate();
     }
 
@@ -147,10 +137,6 @@ public class GVRVideoSceneObject extends GVRSceneObject {
      * {@link MediaPlayer#pause()}.
      */
     public void deactivate() {
-        if (mVideo == null) {
-            return;
-        }
-
         mVideo.deactivate();
     }
 
@@ -163,10 +149,6 @@ public class GVRVideoSceneObject extends GVRSceneObject {
      * @return Whether or not we polling the {@code MediaPlayer} every frame.
      */
     public boolean isActive() {
-        if (mVideo == null) {
-            return false;
-        }
-
         return mVideo.isActive();
     }
 
@@ -176,10 +158,6 @@ public class GVRVideoSceneObject extends GVRSceneObject {
      * @return current {@link MediaPlayer}
      */
     public MediaPlayer getMediaPlayer() {
-        if (mVideo == null) {
-            return null;
-        }
-
         return mVideo.getMediaPlayer();
     }
 
@@ -189,16 +167,8 @@ public class GVRVideoSceneObject extends GVRSceneObject {
      * @param mediaPlayer
      *            An Android {@link MediaPlayer}
      */
-    public void setMediaPlayer(final MediaPlayer mediaPlayer) {
-        if (mVideo == null) {
-            getGVRContext().runOnGlThread(new Runnable() {
-                @Override
-                public void run() {
-                    mVideo.setMediaPlayer(mediaPlayer);
-                }});
-        } else {
-            mVideo.setMediaPlayer(mediaPlayer);
-        }
+    public void setMediaPlayer(MediaPlayer mediaPlayer) {
+        mVideo.setMediaPlayer(mediaPlayer);
     }
 
     /**
@@ -206,10 +176,6 @@ public class GVRVideoSceneObject extends GVRSceneObject {
      * {@link MediaPlayer}, if any
      */
     public void release() {
-        if (mVideo == null) {
-            return;
-        }
-
         mVideo.release();
     }
 
@@ -217,14 +183,10 @@ public class GVRVideoSceneObject extends GVRSceneObject {
      * Returns the current time stamp, in nanoseconds. This comes from
      * {@link SurfaceTexture#getTimestamp()}: you should read the Android
      * documentation on that before you use this value.
-     *
-     * @return current time stamp, in nanoseconds. 0 if the video is not ready.
+     * 
+     * @return current time stamp, in nanoseconds
      */
     public long getTimeStamp() {
-        if (mVideo == null) {
-            return 0; // time stamp not available yet
-        }
-
         return mVideo.getTimeStamp();
     }
 

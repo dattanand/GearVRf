@@ -68,7 +68,7 @@ public class MUNIVisualizerScript extends GVRScript {
 				.setBackgroundColor(r, g, b, 1.0f);
 		scene.getMainCameraRig().getRightCamera()
 				.setBackgroundColor(r, g, b, 1.0f);
-		scene.getMainCameraRig().getTransform()
+		scene.getMainCameraRig().getOwnerObject().getTransform()
 				.setPosition(0f, 0f, 0f);
 
 		busMesh = ctx.loadMesh(new GVRAndroidResource(ctx, "cube.obj"));
@@ -252,12 +252,12 @@ public class MUNIVisualizerScript extends GVRScript {
 
 			Log.i("VRTransit", "Move to " + xc + " " + yc + " " + zc);
 
-			zoomAnim = new GVRRelativeMotionAnimation(rig.getTransform(),
+			zoomAnim = new GVRRelativeMotionAnimation(rig.getOwnerObject(),
 					1.0f, xc, yc, zc);
 			zoomAnim.start(mCtx.getAnimationEngine());
 		} else {
 			Log.i("VRTransit", "Move to " + -xc + " " + -yc + " " + -zc);
-			zoomAnim = new GVRRelativeMotionAnimation(rig.getTransform(),
+			zoomAnim = new GVRRelativeMotionAnimation(rig.getOwnerObject(),
 					1.0f, -xc, -yc, -zc);
 			zoomAnim.start(mCtx.getAnimationEngine());
 		}

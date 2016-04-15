@@ -38,9 +38,8 @@ class GVRInputManagerImpl extends GVRInputManager {
     private GVRScene scene;
     private List<GVRCursorController> controllers;
 
-    GVRInputManagerImpl(GVRContext gvrContext,
-            boolean useGazeCursorController) {
-        super(gvrContext, useGazeCursorController);
+    GVRInputManagerImpl(GVRContext gvrContext) {
+        super(gvrContext);
         sensorManager = new SensorManager();
 
         controllers = new ArrayList<GVRCursorController>();
@@ -95,9 +94,6 @@ class GVRInputManagerImpl extends GVRInputManager {
      */
     void setScene(GVRScene scene) {
         this.scene = scene;
-        for (GVRCursorController controller : controllers) {
-            sensorManager.processPick(scene, controller);
-        }
     }
 
     @Override
@@ -111,7 +107,9 @@ class GVRInputManagerImpl extends GVRInputManager {
         @Override
         public void onDrawFrame(float frameTime) {
             for (GVRCursorController controller : controllers) {
-                controller.update(sensorManager, scene);
+                if (controller.update()) {
+                    sensorManager.processPick(scene, controller);
+                }
             }
         }
     };

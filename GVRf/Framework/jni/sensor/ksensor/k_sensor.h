@@ -68,15 +68,6 @@ private:
     bool getLatestMagneticField();
     glm::quat applyMagnetometerCorrection(glm::quat& q, const glm::vec3& accelerometer, const glm::vec3& gyro, float deltaT);
 
-    void openOvrDevice() {
-        while (0 > (fd_ = open("/dev/ovr0", O_RDONLY))) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(50));
-            if (!processing_flag_) {
-                return;
-            }
-        }
-    }
-
 private:
     int fd_;
     glm::quat q_;
@@ -112,6 +103,8 @@ private:
     glm::mat4 factoryAccelMatrix_;
     glm::mat4 factoryGyroMatrix_;
     float factoryTemperature_ = 0.0f;
+
+    jobject activity_;
 
     static const int KGyroNoiseFilterCapacity = 6000;
 };

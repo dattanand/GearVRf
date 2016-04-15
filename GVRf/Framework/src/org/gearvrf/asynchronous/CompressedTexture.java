@@ -41,7 +41,7 @@ import android.opengl.GLES20;
  * Note that {@link #toTexture(GVRContext, int)} <em>must</em> be called from
  * the GL thread; other methods may be called from any thread.
  */
-public class CompressedTexture {
+class CompressedTexture {
 
     // Field names from
     // https://www.khronos.org/opengles/sdk/docs/man/xhtml/glCompressedTexImage2D.xml
@@ -187,7 +187,7 @@ public class CompressedTexture {
         }
     }
 
-    public static GVRCompressedTextureLoader sniff(InputStream stream)
+    static GVRCompressedTextureLoader sniff(InputStream stream)
             throws IOException {
         byte[] data = readBytes(stream,
                 GVRCompressedTextureLoader.maximumHeaderLength);

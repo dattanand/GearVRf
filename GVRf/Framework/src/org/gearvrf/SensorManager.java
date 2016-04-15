@@ -20,7 +20,6 @@ import java.util.Map;
 
 import org.gearvrf.GVRCursorController.ActiveState;
 import org.gearvrf.utility.Log;
-import org.joml.Vector3f;
 
 /**
  * This class manages {@link GVRBaseSensor}s
@@ -75,22 +74,21 @@ class SensorManager {
         }
 
         // Well at least we are not comparing against all scene objects.
-        if (objectSensor != null && objectSensor.isEnabled()) {
+        if (objectSensor != null && objectSensor.isEnabled()
+                && object.getRenderData() != null
+                && object.getRenderData().getMesh() != null) {
 
             /**
              * Compare ray against the hierarchical bounding volume and then add
              * the children accordingly.
              */
-            Vector3f ray = controller.getRay();
-            if (false == object.intersectsBoundingVolume(ORIGIN[0], ORIGIN[1],
-                    ORIGIN[2], ray.x, ray.y, ray.z)) {                
-                return;
-            }
-
-            if (object.hasMesh()) {
+            if (object.intersectsBoundingVolume(ORIGIN[0], ORIGIN[1], ORIGIN[2],
+                    controller.getRayX(), controller.getRayY(),
+                    controller.getRayZ())) {
                 float[] hitPoint = GVRPicker.pickSceneObjectAgainstBoundingBox(
-                        object, ORIGIN[0], ORIGIN[1], ORIGIN[2], ray.x, ray.y,
-                        ray.z);
+                        object, ORIGIN[0], ORIGIN[1], ORIGIN[2],
+                        controller.getRayX(), controller.getRayY(),
+                        controller.getRayZ());
 
                 if (hitPoint != null) {
                     objectSensor.addSceneObject(controller, object, hitPoint);
@@ -100,14 +98,13 @@ class SensorManager {
                         objectSensor.setActive(controller, true);
                     }
                 }
-            }
 
-            for (GVRSceneObject child : object.getChildren()) {
-                recurseSceneObject(controller, child, objectSensor,
-                        markActiveNodes);
+                for (GVRSceneObject child : object.getChildren()) {
+                    recurseSceneObject(controller, child, objectSensor,
+                            markActiveNodes);
+                }
             }
         }
-
     }
 
     void addSensor(GVRBaseSensor sensor) {

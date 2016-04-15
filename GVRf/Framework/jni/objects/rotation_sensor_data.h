@@ -22,8 +22,6 @@
 #define ROTATION_SENSOR_DATA_H_
 
 #include "glm/glm.hpp"
-#include "glm/gtc/quaternion.hpp"
-#include <utility>
 
 namespace gvr {
 

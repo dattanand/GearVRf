@@ -21,7 +21,6 @@
 #define SCENE_OBJECT_H_
 
 #include <algorithm>
-#include <mutex>
 
 #include "objects/hybrid_object.h"
 #include "objects/components/transform.h"
@@ -108,9 +107,8 @@ public:
         return parent_;
     }
 
-    std::vector<SceneObject*> children() {
-        std::lock_guard < std::mutex > lock(children_mutex_);
-        return std::vector<SceneObject*>(children_);
+    const std::vector<SceneObject*>& children() const {
+        return children_;
     }
 
     void addChildObject(SceneObject* self, SceneObject* child);
@@ -152,7 +150,17 @@ public:
     void dirtyHierarchicalBoundingVolume();
     BoundingVolume& getBoundingVolume();
 
-    int frustumCull(Camera *camera, const float frustum[6][4], int& planeMask);
+    int frustumCull(Camera *camera, const float frustum[6][4]);
+    bool sphereInFrustum(float frustum[6][4], BoundingVolume &sphere);
+
+private:
+    SceneObject(const SceneObject& scene_object);
+    SceneObject(SceneObject&& scene_object);
+    SceneObject& operator=(const SceneObject& scene_object);
+    SceneObject& operator=(SceneObject&& scene_object);
+
+    bool is_cube_in_frustum(const float frustum[6][4],
+            BoundingVolume &bounding_volume);
 
 private:
     std::string name_;
@@ -179,21 +187,6 @@ private:
     bool in_frustum_;
     bool query_currently_issued_;
     GLuint *queries_ = nullptr;
-
-    SceneObject(const SceneObject& scene_object);
-    SceneObject(SceneObject&& scene_object);
-    SceneObject& operator=(const SceneObject& scene_object);
-    SceneObject& operator=(SceneObject&& scene_object);
-
-    bool checkSphereVsFrustum(float frustum[6][4], BoundingVolume &sphere);
-
-    int checkAABBVsFrustumOpt(const float frustum[6][4],
-            BoundingVolume &bounding_volume, int& planeMask);
-
-    bool checkAABBVsFrustumBasic(const float frustum[6][4],
-            BoundingVolume &bounding_volume);
-
-    std::mutex children_mutex_;
 };
 
 }

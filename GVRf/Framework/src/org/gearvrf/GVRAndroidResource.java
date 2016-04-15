@@ -22,12 +22,10 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
 
-import org.gearvrf.asynchronous.CompressedTexture;
-import org.gearvrf.asynchronous.GVRCompressedTextureLoader;
-import org.gearvrf.utility.Log;
 import org.gearvrf.utility.MarkingFileInputStream;
 
 import android.content.Context;
+import android.content.res.AssetManager;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.util.TypedValue;
@@ -46,22 +44,17 @@ import android.util.TypedValue;
  * @since 1.6.1
  */
 public class GVRAndroidResource {
-    private static final String TAG = Log.tag(GVRAndroidResource.class);
 
-    private enum StreamStates {
-        NEW, OPEN, CLOSED
-    }
-
-    private enum ResourceType {
-        ANDROID_ASSETS, ANDROID_RESOURCE, LINUX_FILESYSTEM, NETWORK
+    private enum DebugStates {
+        OPEN, READING, CLOSED
     }
 
     /*
      * Instance members
      */
 
-    private InputStream stream = null;
-    private StreamStates streamState;
+    private final InputStream stream;
+    private DebugStates debugState;
 
     // Save parameters, for hashCode() and equals()
     private final String filePath;
@@ -70,10 +63,6 @@ public class GVRAndroidResource {
     // For hint to Assimp
     private String resourceFilePath;
     private final URL url;
-    private boolean enableUrlLocalCache = false;
-    
-    private Context context = null;
-    private ResourceType resourceType;
 
     /**
      * Open any file you have permission to read.
@@ -85,14 +74,14 @@ public class GVRAndroidResource {
      *             File doesn't exist, or can't be read.
      */
     public GVRAndroidResource(String path) throws FileNotFoundException {
-        streamState = StreamStates.NEW;
+        stream = new MarkingFileInputStream(path);
+        debugState = DebugStates.OPEN;
 
         filePath = path;
         resourceId = 0; // No R.whatever field will ever be 0
         assetPath = null;
         resourceFilePath = null;
         url = null;
-        resourceType = ResourceType.LINUX_FILESYSTEM;
     }
 
     /**
@@ -129,9 +118,9 @@ public class GVRAndroidResource {
      *            A {@code R.raw} or {@code R.drawable} id
      */
     public GVRAndroidResource(Context context, int resourceId) {
-        this.context = context;
         Resources resources = context.getResources();
-        streamState = StreamStates.NEW;
+        stream = resources.openRawResource(resourceId);
+        debugState = DebugStates.OPEN;
 
         filePath = null;
         this.resourceId = resourceId;
@@ -140,7 +129,6 @@ public class GVRAndroidResource {
         TypedValue value = new TypedValue();
         resources.getValue(resourceId, value, true);
         resourceFilePath = value.string.toString();
-        resourceType = ResourceType.ANDROID_RESOURCE;
     }
 
     /**
@@ -176,15 +164,15 @@ public class GVRAndroidResource {
      */
     public GVRAndroidResource(Context context, String assetRelativeFilename)
             throws IOException {
-        this.context = context;    
-        streamState = StreamStates.NEW;
+        AssetManager assets = context.getResources().getAssets();
+        stream = assets.open(assetRelativeFilename);
+        debugState = DebugStates.OPEN;
 
         filePath = null;
         resourceId = 0; // No R.whatever field will ever be 0
         assetPath = assetRelativeFilename;
         resourceFilePath = null;
         url = null;
-        resourceType = ResourceType.ANDROID_ASSETS;
     }
 
     /**
@@ -194,87 +182,27 @@ public class GVRAndroidResource {
      *            A Java {@link URL} object
      * @throws IOException
      */
-    public GVRAndroidResource(GVRContext context, URL url) throws IOException {
-        this(context, url, false);
-    }
+    public GVRAndroidResource(URL url) throws IOException {
+        stream = new BufferedInputStream(url.openStream(), 8192);
+        debugState = DebugStates.OPEN;
 
-    /*
-     * A {@link URLBufferedInputStream} that supports {@link
-     * InputStream#mark(int)} and {@link InputStream#reset()}
-     */
-    static class URLBufferedInputStream extends InputStream {
-        private URL url;
-        private BufferedInputStream in;
-
-        public URLBufferedInputStream(URL url) throws IOException {
-            this.url = url;
-            in = new BufferedInputStream(url.openStream());
-        }
-
-        @Override
-        public boolean markSupported() {
-            return true;
-        }
-
-        @Override
-        public void reset() throws IOException {
-            // Since the bufferInputStream resets the offset within the internal
-            // buffer while may not resets the url's stream correctly
-            // it could easily causes OOM error when decoding it after some
-            // initial read and reset.
-            // Here we tackle it by opening a new connection to the url and
-            // restart from beginning
-            in = new BufferedInputStream(url.openStream());
-        }
-
-        @Override
-        public int read() throws IOException {
-            return in.read();
-        }
-
-        @Override
-        public int read(byte[] buffer, int byteOffset, int byteCount)
-                throws IOException {
-            return in.read(buffer, byteOffset, byteCount);
-        }
-    }
-
-    /**
-     * Download resource from a URL and open it as a regular file.
-     * 
-     * @param context
-     *            An Android Context
-     * @param url
-     *            A Java {@link URL} object
-     * @throws IOException
-     */
-    public GVRAndroidResource(GVRContext context, URL url,
-            boolean enableUrlLocalCache) throws IOException {
-        this.enableUrlLocalCache = enableUrlLocalCache;
-
-        streamState = StreamStates.NEW;
         filePath = null;
-        resourceId = 0;
+        resourceId = 0; // No R.whatever field will ever be 0
         assetPath = null;
         resourceFilePath = null;
         this.url = url;
-        resourceType = ResourceType.NETWORK;
     }
 
     /**
      * Get the open stream.
      * 
      * Changes the debug state (visible <i>via</i> {@link #toString()}) to
-     * {@linkplain GVRAndroidResource.StreamStates#READING READING}.
+     * {@linkplain GVRAndroidResource.DebugStates#READING READING}.
      * 
      * @return An open {@link InputStream}.
-     * @throws IOException 
      */
     public final InputStream getStream() {
-        if (streamState != StreamStates.OPEN) {
-            openStream();
-        }
-
+        debugState = DebugStates.READING;
         return stream;
     }
 
@@ -287,63 +215,15 @@ public class GVRAndroidResource {
     /**
      * Close the open stream.
      * 
-     * Close the stream if it was opened before
-     * 
+     * It's OK to call code that closes the stream for you - the only point of
+     * this API is to update the debug state (visible <i>via</i>
+     * {@link #toString()}) to
+     * {@linkplain GVRAndroidResource.DebugStates#CLOSED CLOSED}.
      */
     public final void closeStream() {
         try {
-            if (streamState == StreamStates.OPEN) {
-                stream.close();
-                stream = null;
-            }
-            streamState = StreamStates.CLOSED;
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-    
-    /**
-     * 
-     * Open the input stream for resource decoding
-     * 
-     * 
-     */
-    public void openStream() {
-        try {
-            switch (resourceType) {
-            case ANDROID_ASSETS:
-                stream = context.getResources().getAssets().open(assetPath);
-                streamState = StreamStates.OPEN;
-                break;
-
-            case ANDROID_RESOURCE:
-                stream = context.getResources().openRawResource(resourceId);
-                streamState = StreamStates.OPEN;
-                break;
-
-            case LINUX_FILESYSTEM:
-                stream = new MarkingFileInputStream(filePath);
-                streamState = StreamStates.OPEN;
-                break;
-
-            case NETWORK:
-                if (!enableUrlLocalCache) {
-                    Log.d(TAG,
-                            "Do not allow local caching, use streaming to get the resource");
-                    stream = new URLBufferedInputStream(url);
-                    streamState = StreamStates.OPEN;
-                } else {
-                    Log.d(TAG,
-                            "Allow local caching, download the resource to local cache");
-                    File file = GVRImporter.downloadFile(context,
-                            url.toString());
-                    stream = new MarkingFileInputStream(file);
-                    streamState = StreamStates.OPEN;
-                }
-                break;
-            default:
-                stream = null;
-            }
+            debugState = DebugStates.CLOSED;
+            stream.close();
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -357,20 +237,11 @@ public class GVRAndroidResource {
      * reset().} Calling {@link #mark()} right after construction will allow you
      * to read the header then {@linkplain #reset() rewind the stream} if you
      * can't handle the file format.
-     * @throws IOException 
      * 
      * @since 1.6.7
      */
-    public void mark() throws IOException {
-        if (streamState == StreamStates.OPEN) {
-            if (stream.markSupported()) {
-                stream.mark(Integer.MAX_VALUE);
-            } else {
-                // In case a inputStream (e.g., fileInputStream) doesn't support
-                // mark, throw a exception
-                throw new IOException("Input stream doesn't support mark");
-            }
-        }
+    public void mark() {
+        stream.mark(Integer.MAX_VALUE);
     }
 
     /**
@@ -385,19 +256,14 @@ public class GVRAndroidResource {
      * reset();
      * reset();
      * </pre>
-     * @throws IOException 
      * 
      * @since 1.6.7
      */
-    public void reset() throws IOException {
-        if (streamState == StreamStates.OPEN) {
-            if (stream.markSupported()) {
-                stream.reset();
-            } else {
-                // In case a inputStream (e.g., fileInputStream) doesn't support
-                // mark, throw a exception
-                throw new IOException("Input stream doesn't support mark");
-            }
+    public void reset() {
+        try {
+            stream.reset();
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
 
@@ -408,24 +274,20 @@ public class GVRAndroidResource {
      *         resource is not associated with any file
      */
     public String getResourceFilename() {
-        switch (resourceType) {
-        case ANDROID_ASSETS:
+        if (filePath != null) {
+            return filePath.substring(filePath.lastIndexOf(File.separator) + 1);
+        } else if (resourceId != 0) {
+            if (resourceFilePath != null) {
+                return resourceFilePath.substring(resourceFilePath
+                        .lastIndexOf(File.separator) + 1);
+            }
+        } else if (assetPath != null) {
             return assetPath
                     .substring(assetPath.lastIndexOf(File.separator) + 1);
-
-        case ANDROID_RESOURCE:
-            return resourceFilePath.substring(
-                    resourceFilePath.lastIndexOf(File.separator) + 1);
-
-        case LINUX_FILESYSTEM:
-            return filePath.substring(filePath.lastIndexOf(File.separator) + 1);
-
-        case NETWORK:
+        } else if (url != null) {
             return url.getPath().substring(url.getPath().lastIndexOf("/") + 1);
-
-        default:
-            return null;
         }
+        return null;
     }
 
     /*
@@ -460,24 +322,25 @@ public class GVRAndroidResource {
         if (getClass() != obj.getClass()) {
             return false;
         }
-
         GVRAndroidResource other = (GVRAndroidResource) obj;
-        switch (resourceType) {
-        case ANDROID_ASSETS:
-            return assetPath.equals(other.assetPath);
-
-        case ANDROID_RESOURCE:
-            return resourceId == other.resourceId;
-
-        case LINUX_FILESYSTEM:
-            return filePath.equals(other.filePath);
-
-        case NETWORK:
-            return url.equals(other.url);
-
-        default:
+        if (assetPath == null) {
+            if (other.assetPath != null) {
+                return false;
+            }
+        } else if (!assetPath.equals(other.assetPath)) {
             return false;
         }
+        if (filePath == null) {
+            if (other.filePath != null) {
+                return false;
+            }
+        } else if (!filePath.equals(other.filePath)) {
+            return false;
+        }
+        if (resourceId != other.resourceId) {
+            return false;
+        }
+        return true;
     }
 
     /*
@@ -491,7 +354,7 @@ public class GVRAndroidResource {
     @Override
     public String toString() {
         return String.format("%s{filePath=%s; resourceId=%x; assetPath=%s, url=%s}",
-                streamState, filePath, resourceId, assetPath, url);
+                debugState, filePath, resourceId, assetPath, url);
     }
 
     /*
@@ -600,38 +463,5 @@ public class GVRAndroidResource {
 
     /** Callback for asynchronous mesh loads */
     public interface MeshCallback extends CancelableCallback<GVRMesh> {
-    }
-
-    private GVRCompressedTextureLoader compressedLoader = null;
-    private boolean isCompressedTextureSniffed = false;
-
-    public GVRCompressedTextureLoader getCompressedLoader() {
-        if (isCompressedTextureSniffed) {
-            return compressedLoader;
-        }
-
-        synchronized (GVRAndroidResource.this) {
-            if (!isCompressedTextureSniffed) {
-                try {
-                    Log.d(TAG, "Looking for compressed header");
-                    openStream();
-                    mark();
-                    try {
-                        compressedLoader = CompressedTexture.sniff(getStream());
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    } finally {
-                        reset();
-                        closeStream();
-                    }
-                } catch (Exception e) {
-                    e.printStackTrace();
-                    return null;
-                }
-                isCompressedTextureSniffed = true;
-            }
-        }
-
-        return compressedLoader;
     }
 }

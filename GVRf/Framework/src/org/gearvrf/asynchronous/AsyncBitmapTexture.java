@@ -15,11 +15,8 @@
 
 package org.gearvrf.asynchronous;
 
-import static android.opengl.GLES20.GL_MAX_TEXTURE_SIZE;
-import static android.opengl.GLES20.GL_NO_ERROR;
-import static android.opengl.GLES20.glGetError;
-import static android.opengl.GLES20.glGetIntegerv;
-import static org.gearvrf.utility.Threads.threadId;
+import static android.opengl.GLES20.*;
+import static org.gearvrf.utility.Threads.*;
 
 import java.io.FileDescriptor;
 import java.io.FileInputStream;
@@ -27,9 +24,12 @@ import java.io.IOException;
 import java.io.InputStream;
 
 import org.gearvrf.GVRAndroidResource;
+import org.gearvrf.GVRAndroidResource.BitmapTextureCallback;
 import org.gearvrf.GVRAndroidResource.CancelableCallback;
 import org.gearvrf.GVRBitmapTexture;
 import org.gearvrf.GVRContext;
+import org.gearvrf.GVRHybridObject;
+import org.gearvrf.GVRTexture;
 import org.gearvrf.asynchronous.Throttler.AsyncLoader;
 import org.gearvrf.asynchronous.Throttler.AsyncLoaderFactory;
 import org.gearvrf.asynchronous.Throttler.GlConverter;
@@ -41,16 +41,9 @@ import org.gearvrf.utility.Threads;
 import android.app.Activity;
 import android.app.ActivityManager;
 import android.content.Context;
-import android.graphics.Bitmap;
+import android.graphics.*;
 import android.graphics.Bitmap.Config;
-import android.graphics.BitmapFactory;
 import android.graphics.BitmapFactory.Options;
-import android.graphics.BitmapRegionDecoder;
-import android.graphics.Canvas;
-import android.graphics.Paint;
-import android.graphics.Point;
-import android.graphics.Rect;
-import android.graphics.RectF;
 import android.view.Display;
 import android.view.WindowManager;
 
@@ -65,52 +58,24 @@ import android.view.WindowManager;
  * 
  * @since 1.6.1
  */
-class AsyncBitmapTexture {
+abstract class AsyncBitmapTexture {
 
     /*
      * The API
      */
 
     static void loadTexture(GVRContext gvrContext,
-            CancelableCallback<GVRBitmapTexture> callback,
-            GVRAndroidResource resource, int priority) {
-        AsyncManager.get().getScheduler().registerCallback(gvrContext, TEXTURE_CLASS, callback,
+            BitmapTextureCallback callback, GVRAndroidResource resource,
+            int priority) {
+        Throttler.registerCallback(gvrContext, TEXTURE_CLASS, callback,
                 resource, priority);
     }
 
-    /*
-     * Singleton
-     */
-    private static AsyncBitmapTexture sInstance;
-
-    /**
-     * Gets the {@link AsyncBitmapTexture} singleton for loading bitmap textures.
-     * @return The {@link AsyncBitmapTexture} singleton.
-     */
-    public static AsyncBitmapTexture get() {
-        if (sInstance != null) {
-            return sInstance;
-        }
-
-        synchronized (AsyncBitmapTexture.class) {
-            sInstance = new AsyncBitmapTexture();
-        }
-
-        return sInstance;
-    }
-
-    private AsyncBitmapTexture() {
-        AsyncManager.get().registerDatatype(TEXTURE_CLASS,
-                new AsyncLoaderFactory<GVRBitmapTexture, Bitmap>() {
-            @Override
-            AsyncLoader<GVRBitmapTexture, Bitmap> threadProc(GVRContext gvrContext,
-                    GVRAndroidResource request,
-                    CancelableCallback<GVRBitmapTexture> callback,
-                    int priority) {
-                return new AsyncLoadTextureResource(gvrContext,
-                        request, callback, priority);
-            }
-        });
+    static void loadTexture(GVRContext gvrContext,
+            CancelableCallback<GVRTexture> callback,
+            GVRAndroidResource resource, int priority) {
+        Throttler.registerCallback(gvrContext, TEXTURE_CLASS, callback,
+                resource, priority);
     }
 
     /*
@@ -119,7 +84,7 @@ class AsyncBitmapTexture {
 
     private static final String TAG = Log.tag(AsyncBitmapTexture.class);
 
-    private static final Class<GVRBitmapTexture> TEXTURE_CLASS = GVRBitmapTexture.class;
+    private static final Class<? extends GVRHybridObject> TEXTURE_CLASS = GVRTexture.class;
 
     /** Ridiculous amounts of detail about decodeFile() */
     protected static final boolean VERBOSE_DECODE = false;
@@ -326,19 +291,19 @@ class AsyncBitmapTexture {
      */
 
     private static class AsyncLoadTextureResource extends
-            AsyncLoader<GVRBitmapTexture, Bitmap> {
+            AsyncLoader<GVRTexture, Bitmap> {
 
-        private static final GlConverter<GVRBitmapTexture, Bitmap> sConverter = new GlConverter<GVRBitmapTexture, Bitmap>() {
+        private static final GlConverter<GVRTexture, Bitmap> sConverter = new GlConverter<GVRTexture, Bitmap>() {
 
             @Override
-            public GVRBitmapTexture convert(GVRContext gvrContext, Bitmap bitmap) {
+            public GVRTexture convert(GVRContext gvrContext, Bitmap bitmap) {
                 return new GVRBitmapTexture(gvrContext, bitmap);
             }
         };
 
         protected AsyncLoadTextureResource(GVRContext gvrContext,
                 GVRAndroidResource request,
-                CancelableCallback<GVRBitmapTexture> callback, int priority) {
+                CancelableCallback<GVRHybridObject> callback, int priority) {
             super(gvrContext, sConverter, request, callback);
         }
 
@@ -349,6 +314,21 @@ class AsyncBitmapTexture {
             resource.closeStream();
             return bitmap;
         }
+    }
+
+    static {
+        Throttler.registerDatatype(TEXTURE_CLASS,
+                new AsyncLoaderFactory<GVRTexture, Bitmap>() {
+
+                    @Override
+                    AsyncLoadTextureResource threadProc(GVRContext gvrContext,
+                            GVRAndroidResource request,
+                            CancelableCallback<GVRHybridObject> callback,
+                            int priority) {
+                        return new AsyncLoadTextureResource(gvrContext,
+                                request, callback, priority);
+                    }
+                });
     }
 
     /*

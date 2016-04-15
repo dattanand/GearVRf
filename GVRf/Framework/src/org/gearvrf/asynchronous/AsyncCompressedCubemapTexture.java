@@ -24,6 +24,7 @@ import org.gearvrf.GVRAndroidResource;
 import org.gearvrf.GVRAndroidResource.CancelableCallback;
 import org.gearvrf.GVRCompressedCubemapTexture;
 import org.gearvrf.GVRContext;
+import org.gearvrf.GVRHybridObject;
 import org.gearvrf.GVRTexture;
 import org.gearvrf.asynchronous.Throttler.AsyncLoader;
 import org.gearvrf.asynchronous.Throttler.AsyncLoaderFactory;
@@ -38,56 +39,18 @@ import org.gearvrf.utility.FileNameUtils;
  *
  * @since 1.6.9
  */
-class AsyncCompressedCubemapTexture {
+abstract class AsyncCompressedCubemapTexture {
 
     /*
      * The API
      */
 
-    void loadTexture(GVRContext gvrContext,
-            CancelableCallback<GVRCompressedCubemapTexture> callback,
+    static void loadTexture(GVRContext gvrContext,
+            CancelableCallback<GVRTexture> callback,
             GVRAndroidResource resource, int priority, Map<String, Integer> map) {
         faceIndexMap = map;
-        AsyncManager.get().getScheduler().registerCallback(gvrContext, TEXTURE_CLASS, callback,
+        Throttler.registerCallback(gvrContext, TEXTURE_CLASS, callback,
                 resource, priority);
-    }
-
-    /*
-     * Singleton
-     */
-
-    private static AsyncCompressedCubemapTexture sInstance;
-
-    /**
-     * Gets the {@link AsyncCompressedCubemapTexture} singleton for loading bitmap textures.
-     * @return The {@link AsyncCompressedCubemapTexture} singleton.
-     */
-    public static AsyncCompressedCubemapTexture get() {
-        if (sInstance != null) {
-            return sInstance;
-        }
-
-        synchronized (AsyncBitmapTexture.class) {
-            sInstance = new AsyncCompressedCubemapTexture();
-        }
-
-        return sInstance;
-    }
-
-    private AsyncCompressedCubemapTexture() {
-        AsyncManager.get().registerDatatype(TEXTURE_CLASS,
-                new AsyncLoaderFactory<GVRCompressedCubemapTexture, CompressedTexture[]>() {
-
-                    @Override
-                    AsyncLoader<GVRCompressedCubemapTexture, CompressedTexture[]> threadProc(
-                            GVRContext gvrContext,
-                            GVRAndroidResource request,
-                            CancelableCallback<GVRCompressedCubemapTexture> cancelableCallback,
-                            int priority) {
-                        return new AsyncLoadCompressedCubemapTextureResource(gvrContext,
-                                request, cancelableCallback, priority);
-                    }
-                });
     }
 
     /*
@@ -96,7 +59,7 @@ class AsyncCompressedCubemapTexture {
 
     // private static final String TAG = Log.tag(AsyncCubemapTexture.class);
 
-    private static final Class<GVRCompressedCubemapTexture> TEXTURE_CLASS = GVRCompressedCubemapTexture.class;
+    private static final Class<? extends GVRHybridObject> TEXTURE_CLASS = GVRCompressedCubemapTexture.class;
 
     /*
      * Asynchronous loader for compressed cubemap texture
@@ -126,7 +89,7 @@ class AsyncCompressedCubemapTexture {
 
       protected AsyncLoadCompressedCubemapTextureResource(GVRContext gvrContext,
           GVRAndroidResource request,
-          CancelableCallback<GVRCompressedCubemapTexture> callback, int priority) {
+          CancelableCallback<GVRHybridObject> callback, int priority) {
         super(gvrContext, sConverter, request, callback);
       }
 
@@ -160,6 +123,20 @@ class AsyncCompressedCubemapTexture {
         resource.closeStream();
         return textureArray;
       }
+    }
+
+    static {
+        Throttler.registerDatatype(TEXTURE_CLASS,
+                new AsyncLoaderFactory<GVRCompressedCubemapTexture, CompressedTexture[]>() {
+                  @Override
+                  AsyncLoadCompressedCubemapTextureResource threadProc(
+                      GVRContext gvrContext, GVRAndroidResource request,
+                      CancelableCallback<GVRHybridObject> callback,
+                      int priority) {
+                    return new AsyncLoadCompressedCubemapTextureResource(gvrContext,
+                            request, callback, priority);
+                 }
+               });
     }
 
     private static Map<String, Integer> faceIndexMap;

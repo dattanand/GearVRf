@@ -83,8 +83,7 @@ class GVRXMLParser {
                             continue;
                         }
                         String attributeName = xpp.getAttributeName(i);
-                        if (tagName.equals("mono-mode-parms")
-                                || "mono-mode-parms".equals(tagName)) {
+                        if (tagName.equals("mono-mode-parms")) {
                             if (attributeName.equals("monoFullScreen")) {
                                 settings.monoScopicModeParms
                                         .setMonoFullScreenMode(Boolean
@@ -99,10 +98,6 @@ class GVRXMLParser {
                         } else if (tagName.equals("vr-app-settings")) {
                             if (attributeName.equals("showLoadingIcon")) {
                                 settings.setShowLoadingIcon(Boolean
-                                        .parseBoolean(xpp.getAttributeValue(i)));
-                            } else if (attributeName
-                                    .equals("useGazeCursorController")) {
-                                settings.setUseGazeCursorController(Boolean
                                         .parseBoolean(xpp.getAttributeValue(i)));
                             } else if (attributeName
                                     .equals("useSrgbFramebuffer")) {
@@ -121,8 +116,7 @@ class GVRXMLParser {
                                 settings.setFramebufferPixelsHigh(Integer
                                         .parseInt(xpp.getAttributeValue(i)));
                             }
-                        } else if (tagName.equals("mode-parms")
-                                || "mode-params".equals(tagName)) {
+                        } else if (tagName.equals("mode-parms")) {
                             if (attributeName.equals("allowPowerSave")) {
                                 settings.getModeParms().setAllowPowerSave(
                                         Boolean.parseBoolean(xpp
@@ -134,8 +128,7 @@ class GVRXMLParser {
                                                 Boolean.parseBoolean(xpp
                                                         .getAttributeValue(i)));
                             } 
-                        } else if(tagName.equals("performance-parms")
-                                || "performance-params".equals(tagName)){
+                        } else if(tagName.equals("performance-parms")){
                             if (attributeName.equals("cpuLevel")) {
                                 settings.getPerformanceParms().setCpuLevel(
                                         Integer.parseInt(xpp
@@ -145,8 +138,7 @@ class GVRXMLParser {
                                         Integer.parseInt(xpp
                                                 .getAttributeValue(i)));
                             }
-                        }else if (tagName.equals("eye-buffer-parms")
-                                || "eye-buffer-params".equals(tagName)) {
+                        }else if (tagName.equals("eye-buffer-parms")) {
                             String attributeValue = xpp.getAttributeValue(i);
                             if (attributeName.equals("fov-y")) {
                                 settings.getEyeBufferParms().setFovY(
@@ -184,10 +176,6 @@ class GVRXMLParser {
                                         .equals("COLOR_8888_sRGB")) {
                                     settings.eyeBufferParms
                                             .setColorFormat(ColorFormat.COLOR_8888_sRGB);
-                                } else if (attributeValue
-                                        .equals("COLOR_RGBA16F")) {
-                                    settings.eyeBufferParms
-                                            .setColorFormat(ColorFormat.COLOR_RGBA16F);
                                 }
                             } else if (attributeName.equals("multiSamples")) {
                                 settings.eyeBufferParms.setMultiSamples(Integer
@@ -206,8 +194,7 @@ class GVRXMLParser {
                                 settings.eyeBufferParms
                                         .setResolutionHeight(resolutionHeight);
                             }
-                        } else if (tagName.equals("head-model-parms")
-                                || "head-model-params".equals(tagName)) {
+                        } else if (tagName.equals("head-model-parms")) {
                             if (attributeName.equals("interpupillaryDistance")) {
                                 settings.headModelParms
                                         .setInterpupillaryDistance(Float

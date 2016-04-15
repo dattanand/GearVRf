@@ -18,6 +18,7 @@ package org.gearvrf.asynchronous;
 import org.gearvrf.GVRAndroidResource;
 import org.gearvrf.GVRAndroidResource.CancelableCallback;
 import org.gearvrf.GVRContext;
+import org.gearvrf.GVRHybridObject;
 import org.gearvrf.GVRMesh;
 import org.gearvrf.asynchronous.Throttler.AsyncLoader;
 import org.gearvrf.asynchronous.Throttler.AsyncLoaderFactory;
@@ -29,7 +30,7 @@ import org.gearvrf.utility.Log;
  * 
  * @since 1.6.2
  */
-class AsyncMesh {
+abstract class AsyncMesh {
 
     @SuppressWarnings("unused")
     private static final String TAG = Log.tag(AsyncMesh.class);
@@ -38,47 +39,11 @@ class AsyncMesh {
      * The API
      */
 
-    void loadMesh(GVRContext gvrContext,
+    static void loadMesh(GVRContext gvrContext,
             CancelableCallback<GVRMesh> callback, GVRAndroidResource resource,
             int priority) {
-        AsyncManager.get().getScheduler().registerCallback(gvrContext, MESH_CLASS, callback, resource,
+        Throttler.registerCallback(gvrContext, MESH_CLASS, callback, resource,
                 priority);
-    }
-
-    /*
-     * Singleton
-     */
-
-    private static AsyncMesh sInstance;
-
-    /**
-     * Gets the {@link AsyncMesh} singleton for loading bitmap textures.
-     * @return The {@link AsyncMesh} singleton.
-     */
-    public static AsyncMesh get() {
-        if (sInstance != null) {
-            return sInstance;
-        }
-
-        synchronized (AsyncBitmapTexture.class) {
-            sInstance = new AsyncMesh();
-        }
-
-        return sInstance;
-    }
-
-    private AsyncMesh() {
-        AsyncManager.get().registerDatatype(MESH_CLASS,
-                new AsyncLoaderFactory<GVRMesh, GVRMesh>() {
-                    @Override
-                    AsyncLoader<GVRMesh, GVRMesh> threadProc(
-                            GVRContext gvrContext,
-                            GVRAndroidResource request,
-                            CancelableCallback<GVRMesh> callback,
-                            int priority) {
-                        return new AsyncLoadMesh(gvrContext, request, callback, priority);
-                    }
-                });
     }
 
     /*
@@ -95,7 +60,7 @@ class AsyncMesh {
         };
 
         AsyncLoadMesh(GVRContext gvrContext, GVRAndroidResource request,
-                CancelableCallback<GVRMesh> callback, int priority) {
+                CancelableCallback<GVRHybridObject> callback, int priority) {
             super(gvrContext, sConverter, request, callback);
         }
 
@@ -105,5 +70,21 @@ class AsyncMesh {
         }
     }
 
-    private static final Class<GVRMesh> MESH_CLASS = GVRMesh.class;
+    private static final Class<? extends GVRHybridObject> MESH_CLASS = GVRMesh.class;
+
+    static {
+        Throttler.registerDatatype(MESH_CLASS,
+                new AsyncLoaderFactory<GVRMesh, GVRMesh>() {
+
+                    @Override
+                    AsyncLoader<GVRMesh, GVRMesh> threadProc(
+                            GVRContext gvrContext, GVRAndroidResource request,
+                            CancelableCallback<GVRHybridObject> callback,
+                            int priority) {
+                        return new AsyncLoadMesh(gvrContext, request, callback,
+                                priority);
+                    }
+                });
+    }
+
 }

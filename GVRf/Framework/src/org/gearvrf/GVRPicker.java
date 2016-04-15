@@ -297,7 +297,7 @@ public class GVRPicker {
             for (final long pointer : pointers) {
                 final GVREyePointeeHolder holder = GVREyePointeeHolder.lookup(gvrContext, pointer);
                 if (null != holder) {
-                    result.add(new GVRPickedObject(holder.getOwnerObject(), holder.getHit()));
+                    result.add(new GVRPickedObject(holder));
                 }
             }
             return result;
@@ -336,20 +336,12 @@ public class GVRPicker {
      * @since 1.6.6
      */
     public static class GVRPickedObject {
-        private final GVRSceneObject mHitObject;
-        private final float[] mHitLocation;
+        private final GVRSceneObject sceneObject;
+        private final float[] hitLocation;
 
-        /**
-         * Creates a new instance of {@link GVRPickedObject}.
-         *
-         * @param hitObject
-         *            The {@link GVRSceneObject} that the ray intersected.
-         * @param hitLocation
-         *            The hit location, as an [x, y, z] array.
-         */
-        public GVRPickedObject(GVRSceneObject hitObject, float[] hitLocation) {
-            mHitObject = hitObject;
-            mHitLocation = hitLocation;
+        private GVRPickedObject(GVREyePointeeHolder holder) {
+            sceneObject = holder.getOwnerObject();
+            hitLocation = holder.getHit();
         }
 
         /**
@@ -359,7 +351,7 @@ public class GVRPicker {
          * @return {@link GVREyePointeeHolder#getOwnerObject()}
          */
         public GVRSceneObject getHitObject() {
-            return mHitObject;
+            return sceneObject;
         }
 
         /**
@@ -370,22 +362,22 @@ public class GVRPicker {
          *         {@link GVRPickedObject picked object's} hit data.
          */
         public float[] getHitLocation() {
-            return Arrays.copyOf(mHitLocation, mHitLocation.length);
+            return Arrays.copyOf(hitLocation, hitLocation.length);
         }
 
         /** The x coordinate of the hit location */
         public float getHitX() {
-            return mHitLocation[0];
+            return hitLocation[0];
         }
 
-        /** The y coordinate of the hit location */
+        /** The x coordinate of the hit location */
         public float getHitY() {
-            return mHitLocation[1];
+            return hitLocation[1];
         }
 
-        /** The z coordinate of the hit location */
+        /** The x coordinate of the hit location */
         public float getHitZ() {
-            return mHitLocation[2];
+            return hitLocation[2];
         }
     }
 

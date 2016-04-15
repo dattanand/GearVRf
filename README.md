@@ -1,4 +1,4 @@
-## The GearVR framework (GearVRf)
+## GearVRf
 
-### Project details can be found at www.gearvrf.org.
-### See https://github.com/gearvrf/GearVRf-Demos for sample apps.
+### Project details you can find at www.gearvrf.org
+### Sample apps you can find at https://github.com/gearvrf/GearVRf-Demos

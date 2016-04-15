@@ -17,11 +17,9 @@
 #include "gl_delete.h"
 #include "util/gvr_cpp_stack_trace.h"
 
-//#define VERBOSE_LOGGING
-
 namespace gvr {
 
-pthread_key_t deleter_key;
+GlDelete gl_delete;
 
 void GlDelete::logInvalidParameter(const char *funcName) {
     LOGW("GlDelete::%s is called with an invalid parameter", funcName);
@@ -36,9 +34,7 @@ void GlDelete::queueBuffer(GLuint buffer) {
 
     lock();
     buffers_.push_back(buffer);
-#ifdef VERBOSE_LOGGING
-    LOGD("queueBuffer(%d) buffers_.size() = %d", buffer, buffers_.size());
-#endif
+//    LOGD("queueBuffer(%d) buffers_.size() = %d", buffer, buffers_.size());
     dirty = true;
     unlock();
 }
@@ -51,10 +47,8 @@ void GlDelete::queueFrameBuffer(GLuint buffer) {
 
     lock();
     frame_buffers_.push_back(buffer);
-#ifdef VERBOSE_LOGGING
-    LOGD("queueFrameBuffer(%d) frame_buffers_.size() = %d", buffer,
-            frame_buffers_.size());
-#endif
+//    LOGD("queueFrameBuffer(%d) frame_buffers_.size() = %d", buffer,
+//            frame_buffers_.size());
     dirty = true;
     unlock();
 }
@@ -67,9 +61,7 @@ void GlDelete::queueProgram(GLuint program) {
 
     lock();
     programs_.push_back(program);
-#ifdef VERBOSE_LOGGING
-    LOGD("queueProgram(%d) programs_.size() = %d", program, programs_.size());
-#endif
+//    LOGD("queueProgram(%d) programs_.size() = %d", program, programs_.size());
     dirty = true;
     unlock();
 }
@@ -82,10 +74,8 @@ void GlDelete::queueRenderBuffer(GLuint buffer) {
 
     lock();
     render_buffers_.push_back(buffer);
-#ifdef VERBOSE_LOGGING
-    LOGD("queueRenderBuffer(%d) render_buffers_.size() = %d", buffer,
-            render_buffers_.size());
-#endif
+//    LOGD("queueRenderBuffer(%d) render_buffers_.size() = %d", buffer,
+//            render_buffers_.size());
     dirty = true;
     unlock();
 }
@@ -98,9 +88,7 @@ void GlDelete::queueShader(GLuint shader) {
 
     lock();
     shaders_.push_back(shader);
-#ifdef VERBOSE_LOGGING
-    LOGD("queueShader(%d) shaders_.size() = %d", shader, shaders_.size());
-#endif
+//    LOGD("queueShader(%d) shaders_.size() = %d", shader, shaders_.size());
     dirty = true;
     unlock();
 }
@@ -113,9 +101,7 @@ void GlDelete::queueTexture(GLuint texture) {
 
     lock();
     textures_.push_back(texture);
-#ifdef VERBOSE_LOGGING
-    LOGD("queueTexture(%d) textures_.size() = %d", texture, textures_.size());
-#endif
+//    LOGD("queueTexture(%d) textures_.size() = %d", texture, textures_.size());
     dirty = true;
     unlock();
 }
@@ -128,10 +114,8 @@ void GlDelete::queueVertexArray(GLuint vertex_array) {
 
     lock();
     vertex_arrays_.push_back(vertex_array);
-#ifdef VERBOSE_LOGGING
-    LOGD("queueVertexArray(%d) vertex_arrays_.size() = %d", vertex_array,
-            vertex_arrays_.size());
-#endif
+//    LOGD("queueVertexArray(%d) vertex_arrays_.size() = %d", vertex_array,
+//            vertex_arrays_.size());
     dirty = true;
     unlock();
 }
@@ -145,9 +129,7 @@ void GlDelete::processQueues() {
      */
     if (dirty) {
         lock();
-#ifdef VERBOSE_LOGGING
-        LOGD("GlDelete::processQueues()");
-#endif
+//    LOGD("GlDelete::processQueues()");
         if (buffers_.size() > 0) {
             glDeleteBuffers(buffers_.size(), buffers_.data());
             buffers_.clear();

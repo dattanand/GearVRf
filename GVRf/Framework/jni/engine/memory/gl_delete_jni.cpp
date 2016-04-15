@@ -19,29 +19,14 @@
 namespace gvr {
 
 extern "C" {
-
 JNIEXPORT void JNICALL
-Java_org_gearvrf_NativeGLDelete_processQueues(JNIEnv * env, jobject obj, jlong deleterPtr) {
-    GlDelete* deleter = reinterpret_cast<GlDelete*>(deleterPtr);
-    deleter->processQueues();
-}
-
-JNIEXPORT jlong JNICALL
-Java_org_gearvrf_NativeGLDelete_ctor(JNIEnv * env, jobject obj) {
-    return reinterpret_cast<long>(new GlDelete());
+Java_org_gearvrf_NativeGLDelete_processQueues(JNIEnv * env, jobject obj);
 }
 
 JNIEXPORT void JNICALL
-Java_org_gearvrf_NativeGLDelete_dtor(JNIEnv * env, jobject obj, jlong deleterPtr) {
-    GlDelete* deleter = reinterpret_cast<GlDelete*>(deleterPtr);
-    delete deleter;
+Java_org_gearvrf_NativeGLDelete_processQueues(JNIEnv * env, jobject obj) {
+    gl_delete.processQueues();
 }
 
-JNIEXPORT void JNICALL
-Java_org_gearvrf_NativeGLDelete_createTlsKey(JNIEnv * env, jobject obj) {
-    GlDelete::createTlsKey();
+
 }
-
-}   //extern "C"
-
-}   //namespace gvr

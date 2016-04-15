@@ -17,20 +17,16 @@ package org.gearvrf;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.Future;
 
-import org.gearvrf.GVRAndroidResource.TextureCallback;
-import org.gearvrf.asynchronous.GVRAsynchronousResourceLoader.FutureResource;
 import org.gearvrf.utility.Colors;
 import org.gearvrf.utility.Threads;
-import org.gearvrf.utility.Log;
-
 import static org.gearvrf.utility.Assert.*;
+
 import android.graphics.Color;
 
 /**
- * Encapsulates the data needed for shading, including textures and shader uniforms.
+ * This is one of the key GVRF classes: it holds shaders with textures.
  * 
  * You can have invisible {@linkplain GVRSceneObject scene objects:} these have
  * a location and a set of child objects. This can be useful, to move a set of
@@ -70,7 +66,6 @@ import android.graphics.Color;
  */
 public class GVRMaterial extends GVRHybridObject implements
         GVRShaders<GVRMaterialShaderId> {
-    private static final String TAG = Log.tag(GVRHybridObject.class);
 
     private int mShaderFeatureSet;
     private GVRMaterialShaderId shaderId;
@@ -128,7 +123,24 @@ public class GVRMaterial extends GVRHybridObject implements
             public static final GVRMaterialShaderId ID = new GVRStockMaterialShaderId(
                     9);
 
-                        
+            /**
+             * Set this feature enum if diffuse texture is present in Assimp
+             * material Diffuse texture maps to main_texture in GearVRf
+             */
+            public static int AS_DIFFUSE_TEXTURE = 0;
+
+            /**
+             * Set this feature enum if specular texture is present in Assimp
+             * material
+             */
+            public static int AS_SPECULAR_TEXTURE = 1;
+
+            /**
+             * Set this feature enum if skinning info is present in Assimp
+             * material
+             */
+            public static int AS_SKINNING = 2;
+
             public static int setBit(int number, int index) {
                 return (number |= 1 << index);
             }
@@ -142,15 +154,9 @@ public class GVRMaterial extends GVRHybridObject implements
             }
         }
 
-
         public abstract static class UnlitFBO {
             public static final GVRMaterialShaderId ID = new GVRStockMaterialShaderId(
                     20);
-					}
-
-        public abstract static class LightMap {
-            public static final GVRMaterialShaderId ID = new GVRStockMaterialShaderId(
-                    11);
         }
     };
 
@@ -166,13 +172,14 @@ public class GVRMaterial extends GVRHybridObject implements
     public GVRMaterial(GVRContext gvrContext, GVRMaterialShaderId shaderId) {
         super(gvrContext, NativeMaterial.ctor(shaderId.ID));
         this.shaderId = shaderId;
-        // set lighting coefficients to OpenGL default values
-        // TODO: Get rid of this - it does not belong here!
-        setAmbientColor(0.2f, 0.2f, 0.2f, 1.0f);
-        setDiffuseColor(0.8f, 0.8f, 0.8f, 1.0f);
-        setSpecularColor(0.0f, 0.0f, 0.0f, 1.0f);
-        setVec4("emissive_color", 0.0f, 0.0f, 0.0f, 1.0f);
-        setSpecularExponent(0.0f);
+        // if texture shader is used, set lighting coefficients to OpenGL default
+        // values
+        if (shaderId == GVRShaderType.Texture.ID) {
+            setAmbientColor(0.2f, 0.2f, 0.2f, 1.0f);
+            setDiffuseColor(0.8f, 0.8f, 0.8f, 1.0f);
+            setSpecularColor(0.0f, 0.0f, 0.0f, 1.0f);
+            setSpecularExponent(0.0f);
+        }
         this.mShaderFeatureSet = 0;
     }
 
@@ -216,110 +223,6 @@ public class GVRMaterial extends GVRHybridObject implements
 
     public void setMainTexture(Future<GVRTexture> texture) {
         setTexture(MAIN_TEXTURE, texture);
-    }
-
-    /**
-     * Set the baked light map texture
-     *
-     * @param texture
-     *            Texture with baked light map
-     */
-    public void setLightMapTexture(GVRTexture texture) {
-        setTexture("lightmap_texture", texture);
-    }
-
-    /**
-     * Set the baked light map texture
-     *
-     * @param texture
-     *            Texture with baked light map
-     */
-    public void setLightMapTexture(Future<GVRTexture> texture) {
-        setTexture("lightmap_texture", texture);
-    }
-
-    /**
-     * Set the light map information(offset and scale) at UV space to
-     * map the light map texture to the mesh.
-     *
-     * @param lightMapInformation
-     *            Atlas information object with the offset and scale
-     * at UV space necessary to map the light map texture to the mesh.
-     */
-    public void setLightMapInfo(GVRAtlasInformation lightMapInformation) {
-        setTextureAtlasInfo("lightmap", lightMapInformation);
-    }
-
-    /**
-     * Set the light map information(offset and scale) at UV space to
-     * map the light map texture to the mesh.
-     *
-     * @param key
-     *            Prefix name of the uniform at light map shader:
-     *            ([key]_texture, [key]_offset and [key]_scale.
-     * @param lightMapInformation
-     *            Atlas information object with the offset and scale
-     * at UV space necessary to map the light map texture to the mesh.
-     */
-    public void setTextureAtlasInfo(String key, GVRAtlasInformation atlasInformation) {
-        setTextureAtlasInfo(key, atlasInformation.getOffset(), atlasInformation.getScale());
-    }
-
-    /**
-     * Set the light map information(offset and scale) at UV space to
-     * map the light map texture to the mesh.
-     *
-     * @param key
-     *            Prefix name of the uniform at light map shader:
-     *            ([key]_texture, [key]_offset and [key]_scale.
-     * @param offset
-     *            Array with x and y offset values at UV space
-     *            to map the 2D texture to the mesh.
-     * @param scale
-     *            Array with x and y scale values at UV space
-     *            to map the 2D texture to the mesh.
-     */
-    public void setTextureAtlasInfo(String key, float[] offset, float[] scale) {
-        setTextureOffset(key, offset);
-        setTextureScale(key, scale);
-    }
-
-    /**
-     * Returns the placement offset of texture {@code key}}
-     * @param key Texture name. A common name is "main",
-     *            "lightmap", etc.
-     * @return    The vector of x and y at uv space.
-     */
-    public float[] getTextureOffset(String key) {
-        return getVec2(key + "_offset");
-    }
-
-    /**
-     * Set the placement offset of texture {@code key}}
-     * @param key Texture name. A common name is "main",
-     *            "lightmap", etc.
-     */
-    public void setTextureOffset(String key, float[] offset) {
-        setVec2(key + "_offset", offset[0], offset[1]);
-    }
-
-    /**
-     * Returns the placement scale of texture {@code key}}
-     * @param key Texture name. A common name is "main",
-     *            "lightmap", etc.
-     * @return    The vector of x and y at uv space.
-     */
-    public float[] getTextureScale(String key) {
-        return getVec2(key + "_scale");
-    }
-
-    /**
-     * Set the placement scale of texture {@code key}}
-     * @param key Texture name. A common name is "main",
-     *            "lightmap", etc.
-     */
-    public void setTextureScale(String key, float[] scale) {
-        setVec2(key + "_scale", scale[0], scale[1]);
     }
 
     /**
@@ -572,48 +475,25 @@ public class GVRMaterial extends GVRHybridObject implements
         return textures.get(key);
     }
 
-
     public void setTexture(String key, GVRTexture texture) {
         checkStringNotNullOrEmpty("key", key);
+        checkNotNull("texture", texture);
         textures.put(key, texture);
-        if (texture != null)
-            NativeMaterial.setTexture(getNative(), key, texture.getNative());
+        NativeMaterial.setTexture(getNative(), key, texture.getNative());
     }
 
     public void setTexture(final String key, final Future<GVRTexture> texture) {
-        if (texture.isDone()) {
-            try {
-                setTexture(key, texture.get());
-            } catch (Exception e) {
-                e.printStackTrace();
+        Threads.spawn(new Runnable() {
+
+            @Override
+            public void run() {
+                try {
+                    setTexture(key, texture.get());
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
             }
-        } else {
-            setTexture(key, (GVRTexture) null);
-            TextureCallback callback = new TextureCallback() {
-                @Override
-                public void loaded(GVRTexture texture,
-                        GVRAndroidResource ignored) {
-                   setTexture(key, texture);
-                    Log.d(TAG, "Finish loading and setting texture %s",
-                            texture);
-                }
-
-                @Override
-                public void failed(Throwable t,
-                        GVRAndroidResource androidResource) {
-                    Log.e(TAG, "Error loading texture %s; exception: %s",
-                            texture, t.getMessage());
-                }
-
-                @Override
-                public boolean stillWanted(GVRAndroidResource androidResource) {
-                    return true;
-                }
-            };
-
-            getGVRContext().loadTexture(callback,
-                    ((FutureResource<GVRTexture>) texture).getResource());
-        }
+        });
     }
 
     public float getFloat(String key) {
@@ -665,24 +545,6 @@ public class GVRMaterial extends GVRHybridObject implements
         checkStringNotNullOrEmpty("key", key);
         NativeMaterial.setMat4(getNative(), key, x1, y1, z1, w1, x2, y2, z2,
                 w2, x3, y3, z3, w3, x4, y4, z4, w4);
-    }
-    
-    /**
-     * Determine whether a named uniform is defined
-     * by this material.
-     * @param name of uniform in shader and material
-     * @return true if uniform defined, else false
-     */
-    public boolean hasUniform(String name) {
-    	return NativeMaterial.hasUniform(getNative(), name);
-    }
-
-    /**
-     * Return the list of texture keys for this material.
-     * @return set of unique texture names.
-     */
-    public Set<String> getTextureNames() {
-        return textures.keySet();
     }
     
     /**
@@ -743,6 +605,4 @@ class NativeMaterial {
             float z4, float w4);
 
     static native void setShaderFeatureSet(long material, int featureSet);
-    
-    static native boolean hasUniform(long material, String key);
 }

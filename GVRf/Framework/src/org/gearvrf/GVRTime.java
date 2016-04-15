@@ -16,9 +16,7 @@
 package org.gearvrf;
 
 /** JNI methods about time. */
-public class GVRTime {
-    public static long NANO_TO_MILLIS = 1000000;
-
+class GVRTime {
     private GVRTime() {
     }
 
@@ -33,27 +31,8 @@ public class GVRTime {
     static long getCurrentTime() {
         return NativeTime.getCurrentTime();
     }
-
-    /**
-     * The current time, using the CPU clock. 
-     * 
-     * This is the native version of {@link System#nanoTime()}
-     */
-    public static long getNanoTime() {
-        return NativeTime.getNanoTime();
-    }
-
-    /**
-     * The current time in milliseocnds, using the CPU clock.
-     * @return Time in millis.
-     */
-    public static long getMilliTime() {
-        return GVRTime.getNanoTime() / GVRTime.NANO_TO_MILLIS;
-    }
 }
 
 class NativeTime {
     static native long getCurrentTime();
-
-    static native long getNanoTime();
 }

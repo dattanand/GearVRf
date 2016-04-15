@@ -197,19 +197,21 @@ void TextureShader::render(const glm::mat4& mv_matrix,
         }
     }
 
+#if _GVRF_USE_GLES3_
+
     mesh->generateVAO();
 
     if (use_light) {
-        GL(glUseProgram(program_light_->id()));
+        glUseProgram(program_light_->id());
     } else {
-        GL(glUseProgram(program_no_light_->id()));
+        glUseProgram(program_no_light_->id());
     }
 
-    GL(glActiveTexture (GL_TEXTURE0));
-    GL(glBindTexture(texture->getTarget(), texture->getId()));
+    glActiveTexture (GL_TEXTURE0);
+    glBindTexture(texture->getTarget(), texture->getId());
 
     if (use_light) {
-        glm::vec3 light_position = light->getVec3("world_position");
+        glm::vec3 light_position = light->getVec3("position");
         glm::vec4 light_ambient_intensity = light->getVec4("ambient_intensity");
         glm::vec4 light_diffuse_intensity = light->getVec4("diffuse_intensity");
         glm::vec4 light_specular_intensity = light->getVec4(
@@ -245,7 +247,7 @@ void TextureShader::render(const glm::mat4& mv_matrix,
                 light_specular_intensity.g, light_specular_intensity.b,
                 light_specular_intensity.a);
 
-        glBindVertexArray(mesh->getVAOId());
+        glBindVertexArray(mesh->getVAOId(Material::TEXTURE_SHADER));
     } else {
         glUniformMatrix4fv(u_mvp_no_light_, 1, GL_FALSE,
                 glm::value_ptr(mvp_matrix));
@@ -254,12 +256,35 @@ void TextureShader::render(const glm::mat4& mv_matrix,
         glUniform3f(u_color_no_light_, color.r, color.g, color.b);
         glUniform1f(u_opacity_no_light_, opacity);
 
-        glBindVertexArray(mesh->getVAOId());
+        glBindVertexArray(mesh->getVAOId(Material::TEXTURE_SHADER_NOLIGHT));
     }
 
-    GL(glDrawElements(render_data->draw_mode(), mesh->indices().size(), GL_UNSIGNED_SHORT,
-            0));
-    GL(glBindVertexArray(0));
+    glDrawElements(render_data->draw_mode(), mesh->indices().size(), GL_UNSIGNED_SHORT,
+            0);
+    glBindVertexArray(0);
+
+#else
+    glUseProgram(program_->id());
+
+    glVertexAttribPointer(a_position_, 3, GL_FLOAT, GL_FALSE, 0,
+            mesh->vertices().data());
+    glEnableVertexAttribArray(a_position_);
+
+    glUniformMatrix4fv(u_mv_, 1, GL_FALSE, glm::value_ptr(mv_matrix));
+    glUniformMatrix4fv(u_mv_it_, 1, GL_FALSE, glm::value_ptr(mv_it_matrix));
+    glUniformMatrix4fv(u_mvp_, 1, GL_FALSE, glm::value_ptr(mvp_matrix));
+
+    glActiveTexture (GL_TEXTURE0);
+    glBindTexture(texture->getTarget(), texture->getId());
+    glUniform1i(u_texture_, 0);
+
+    glUniform3f(u_color_, color.r, color.g, color.b);
+
+    glUniform1f(u_opacity_, opacity);
+
+    glDrawElements(render_data->draw_mode(), mesh->indices().size(), GL_UNSIGNED_SHORT,
+            mesh->indices().data());
+#endif
 
     checkGlError("TextureShader::render");
 }
